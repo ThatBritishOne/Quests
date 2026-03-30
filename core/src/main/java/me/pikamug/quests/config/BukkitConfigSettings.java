@@ -44,6 +44,7 @@ public class BukkitConfigSettings implements ConfigSettings {
     private boolean showCompletedObjs = true;
     private boolean showQuestReqs = true;
     private boolean showQuestTitles = true;
+    private boolean showCompletionChatDetails = true;
     private int strictPlayerMovement = 0;
     private boolean trialSave = true;
     private int topLimit = 150;
@@ -199,6 +200,12 @@ public class BukkitConfigSettings implements ConfigSettings {
     public void setShowQuestTitles(final boolean showQuestTitles) {
         this.showQuestTitles = showQuestTitles;
     }
+    public boolean canShowCompletionChatDetails() {
+        return showCompletionChatDetails;
+    }
+    public void setShowCompletionChatDetails(final boolean showCompletionChatDetails) {
+        this.showCompletionChatDetails = showCompletionChatDetails;
+    }
     public int getStrictPlayerMovement() {
         return strictPlayerMovement;
     }
@@ -275,6 +282,7 @@ public class BukkitConfigSettings implements ConfigSettings {
         showCompletedObjs = config.getBoolean("show-completed-objectives", true);
         showQuestReqs = config.getBoolean("show-requirements", true);
         showQuestTitles = config.getBoolean("show-titles", true);
+        showCompletionChatDetails = config.getBoolean("show-completion-chat-details", true);
         strictPlayerMovement = config.getInt("strict-player-movement", 0);
         trialSave = config.getBoolean("trial-save", false);
         topLimit = config.getInt("top-limit", 150);

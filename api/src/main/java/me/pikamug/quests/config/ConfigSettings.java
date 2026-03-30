@@ -59,6 +59,8 @@ public interface ConfigSettings {
     void setShowQuestReqs(final boolean showQuestReqs);
     boolean canShowQuestTitles();
     void setShowQuestTitles(final boolean showQuestTitles);
+    boolean canShowCompletionChatDetails();
+    void setShowCompletionChatDetails(final boolean showCompletionChatDetails);
     int getStrictPlayerMovement();
     void setStrictPlayerMovement(final int strictPlayerMovement);
     boolean canTrialSave();

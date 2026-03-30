@@ -882,25 +882,26 @@ public class BukkitQuest implements Quest {
         // Inform player
         if (player.isOnline()) {
             final Player p = (Player)player;
-            BukkitLang.send(p, ChatColor.GOLD + BukkitLang.get(p, "questCompleteTitle").replace("<quest>", name));
-            if (plugin.getConfigSettings().canShowQuestTitles()) {
-                final String title = ChatColor.GOLD + BukkitLang.get(p, "quest") + " " + BukkitLang.get(p, "complete");
-                final String subtitle = ChatColor.YELLOW + name;
-                BukkitTitleProvider.sendTitle(p, title, subtitle);
-            }
-            BukkitLang.send(p, ChatColor.GREEN + BukkitLang.get(p, "questRewardsTitle"));
-            if (!issuedReward) {
-                p.sendMessage(ChatColor.GRAY + "- (" + BukkitLang.get("none") + ")");
-            } else if (!rewards.getDetailsOverride().isEmpty()) {
-                for (final String s: rewards.getDetailsOverride()) {
-                    String message = ChatColor.DARK_GREEN + BukkitConfigUtil.parseString(
-                            ChatColor.translateAlternateColorCodes('&', s));
-                    if (plugin.getDependencies().getPlaceholderApi() != null) {
-                        message = PlaceholderAPI.setPlaceholders(p, message);
-                    }
-                    quester.sendMessage("- " + message);
+            if (plugin.getConfigSettings().canShowCompletionChatDetails()) {
+                BukkitLang.send(p, ChatColor.GOLD + BukkitLang.get(p, "questCompleteTitle").replace("<quest>", name));
+                if (plugin.getConfigSettings().canShowQuestTitles()) {
+                    final String title = ChatColor.GOLD + BukkitLang.get(p, "quest") + " " + BukkitLang.get(p, "complete");
+                    final String subtitle = ChatColor.YELLOW + name;
+                    BukkitTitleProvider.sendTitle(p, title, subtitle);
                 }
-            } else {
+                BukkitLang.send(p, ChatColor.GREEN + BukkitLang.get(p, "questRewardsTitle"));
+                if (!issuedReward) {
+                    p.sendMessage(ChatColor.GRAY + "- (" + BukkitLang.get("none") + ")");
+                } else if (!rewards.getDetailsOverride().isEmpty()) {
+                    for (final String s: rewards.getDetailsOverride()) {
+                        String message = ChatColor.DARK_GREEN + BukkitConfigUtil.parseString(
+                                ChatColor.translateAlternateColorCodes('&', s));
+                        if (plugin.getDependencies().getPlaceholderApi() != null) {
+                            message = PlaceholderAPI.setPlaceholders(p, message);
+                        }
+                        quester.sendMessage("- " + message);
+                    }
+                } else {
                 if (rewards.getExp() > 0) {
                     quester.sendMessage("- " + ChatColor.DARK_GREEN + rewards.getExp() + " "
                             + BukkitLang.get(p, "experience"));
@@ -1046,6 +1047,7 @@ public class BukkitQuest implements Quest {
                         }
                     }
                 }
+            }
             }
         }
         quester.saveData();
