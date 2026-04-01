@@ -112,6 +112,13 @@ public class BukkitQuesterYamlStorage implements QuesterStorageImpl {
         }
         quester.setLastKnownName(data.getString("lastKnownName"));
         quester.setQuestPoints(data.getInt("quest-points"));
+        if (data.contains("showTrackingBossBar")) {
+            quester.setShowTrackingBossBar(data.getBoolean("showTrackingBossBar", true));
+        }
+        if (data.contains("trackedQuest")) {
+            final String trackedQuestId = data.getString("trackedQuest");
+            quester.setTrackedQuest(trackedQuestId != null ? plugin.getQuestById(trackedQuestId) : null);
+        }
         final ConcurrentSkipListSet<Quest> completedQuests = quester.getCompletedQuests();
         if (data.isList("completed-Quests")) {
             for (final String s : data.getStringList("completed-Quests")) {

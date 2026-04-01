@@ -37,12 +37,15 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class BukkitQuesterSqlStorage implements QuesterStorageImpl {
-    private static final String PLAYER_SELECT = "SELECT lastknownname, questpoints FROM '{prefix}players' WHERE uuid=?";
+    private static final String PLAYER_SELECT = "SELECT lastknownname, questpoints, trackedquestid, trackingbossbarenabled FROM '{prefix}players' WHERE uuid=?";
     private static final String PLAYER_SELECT_UUID = "SELECT DISTINCT uuid FROM '{prefix}players'";
     private static final String PLAYER_SELECT_USERNAME = "SELECT lastknownname FROM '{prefix}players' WHERE uuid=? LIMIT 1";
     private static final String PLAYER_UPDATE_USERNAME = "UPDATE '{prefix}players' SET lastknownname=? WHERE uuid=?";
-    private static final String PLAYER_INSERT = "INSERT INTO '{prefix}players' (uuid, lastknownname, questpoints) "
-            + "VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE uuid=uuid, lastknownname=VALUES(lastknownname), questpoints=VALUES(questpoints)";
+        private static final String PLAYER_INSERT = "INSERT INTO '{prefix}players' (uuid, lastknownname, questpoints, trackedquestid, trackingbossbarenabled) "
+            + "VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE uuid=uuid, lastknownname=VALUES(lastknownname), "
+            + "questpoints=VALUES(questpoints), trackedquestid=VALUES(trackedquestid), "
+            + "trackingbossbarenabled=VALUES(trackingbossbarenabled)";
+        private static final String PLAYER_UPDATE_SETTINGS = "UPDATE '{prefix}players' SET questpoints=?, trackedquestid=?, trackingbossbarenabled=? WHERE uuid=?";
     private static final String PLAYER_DELETE = "DELETE FROM '{prefix}players' WHERE uuid=?";
     
     private static final String PLAYER_CURRENT_QUESTS_SELECT_BY_UUID = "SELECT questid, stageNum FROM '{prefix}player_currentquests' WHERE uuid=?";
@@ -138,6 +141,8 @@ public class BukkitQuesterSqlStorage implements QuesterStorageImpl {
                     + "` (`uuid` VARCHAR(36) NOT NULL, "
                     + "`lastknownname` VARCHAR(16) NOT NULL, "
                     + "`questpoints` BIGINT NOT NULL, "
+                    + "`trackedquestid` VARCHAR(100) NULL, "
+                    + "`trackingbossbarenabled` BOOLEAN NOT NULL DEFAULT TRUE, "
                     + "PRIMARY KEY (`uuid`)"
                     + ") DEFAULT CHARSET = utf8mb4";
             queries[1] = "CREATE TABLE IF NOT EXISTS `" + statementProcessor.apply("{prefix}player_currentquests")
@@ -207,6 +212,18 @@ public class BukkitQuesterSqlStorage implements QuesterStorageImpl {
                         }
                     }
                 }
+                try {
+                    s.execute("ALTER TABLE `" + statementProcessor.apply("{prefix}players")
+                            + "` ADD COLUMN `trackedquestid` VARCHAR(100) NULL");
+                } catch (final SQLException ignored) {
+                    // Column already exists
+                }
+                try {
+                    s.execute("ALTER TABLE `" + statementProcessor.apply("{prefix}players")
+                            + "` ADD COLUMN `trackingbossbarenabled` BOOLEAN NOT NULL DEFAULT TRUE");
+                } catch (final SQLException ignored) {
+                    // Column already exists
+                }
             }
         }
     }
@@ -234,6 +251,8 @@ public class BukkitQuesterSqlStorage implements QuesterStorageImpl {
                     while (rs.next()) {
                         quester.setLastKnownName(rs.getString("lastknownname"));
                         quester.setQuestPoints(rs.getInt("questpoints"));
+                        quester.setTrackedQuest(plugin.getQuestById(rs.getString("trackedquestid")));
+                        quester.setShowTrackingBossBar(rs.getBoolean("trackingbossbarenabled"));
                     }
                 }
             }
@@ -277,8 +296,17 @@ public class BukkitQuesterSqlStorage implements QuesterStorageImpl {
                     ps.setString(1, uniqueId.toString());
                     ps.setString(2, lastKnownName != null ? lastKnownName : "unspecified");
                     ps.setInt(3, bukkitQuester.getQuestPoints());
+                    ps.setString(4, bukkitQuester.getTrackedQuest() != null ? bukkitQuester.getTrackedQuest().getId() : null);
+                    ps.setBoolean(5, bukkitQuester.canShowTrackingBossBar());
                     ps.execute();
                 }
+            }
+            try (final PreparedStatement ps = c.prepareStatement(statementProcessor.apply(PLAYER_UPDATE_SETTINGS))) {
+                ps.setInt(1, bukkitQuester.getQuestPoints());
+                ps.setString(2, bukkitQuester.getTrackedQuest() != null ? bukkitQuester.getTrackedQuest().getId() : null);
+                ps.setBoolean(3, bukkitQuester.canShowTrackingBossBar());
+                ps.setString(4, uniqueId.toString());
+                ps.execute();
             }
             
             if (!oldCurrentQuests.isEmpty()) {

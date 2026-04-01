@@ -61,6 +61,8 @@ public interface ConfigSettings {
     void setShowQuestTitles(final boolean showQuestTitles);
     boolean canShowCompletionChatDetails();
     void setShowCompletionChatDetails(final boolean showCompletionChatDetails);
+    boolean canEnableTrackingBossBar();
+    void setEnableTrackingBossBar(final boolean enableTrackingBossBar);
     int getStrictPlayerMovement();
     void setStrictPlayerMovement(final int strictPlayerMovement);
     boolean canTrialSave();

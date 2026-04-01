@@ -944,6 +944,7 @@ public class BukkitPlayerListener implements Listener {
                             quester.updateJournal();
                         }
                         quester.findCompassTarget();
+                        quester.refreshTrackingBossBar();
                     }, 40L);
                 } catch (final Exception e) {
                     e.printStackTrace();
@@ -977,6 +978,7 @@ public class BukkitPlayerListener implements Listener {
             } else {
                 quester.saveData();
             }
+            quester.refreshTrackingBossBar();
             
             if (plugin.getQuestFactory().getSelectingNpcs().contains(event.getPlayer().getUniqueId())) {
                 final ConcurrentSkipListSet<UUID> temp = plugin.getQuestFactory().getSelectingNpcs();

@@ -71,6 +71,16 @@ public interface Quester extends Comparable<Quester> {
      */
     void setCompassTarget(final Quest quest);
 
+    Quest getTrackedQuest();
+
+    void setTrackedQuest(final Quest quest);
+
+    boolean canShowTrackingBossBar();
+
+    void setShowTrackingBossBar(final boolean showTrackingBossBar);
+
+    void refreshTrackingBossBar();
+
     ConcurrentHashMap<Integer, Quest> getTimers();
 
     void setTimers(final ConcurrentHashMap<Integer, Quest> timers);

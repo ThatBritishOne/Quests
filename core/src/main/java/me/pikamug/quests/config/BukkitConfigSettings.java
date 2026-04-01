@@ -45,6 +45,7 @@ public class BukkitConfigSettings implements ConfigSettings {
     private boolean showQuestReqs = true;
     private boolean showQuestTitles = true;
     private boolean showCompletionChatDetails = true;
+    private boolean enableTrackingBossBar = true;
     private int strictPlayerMovement = 0;
     private boolean trialSave = true;
     private int topLimit = 150;
@@ -206,6 +207,12 @@ public class BukkitConfigSettings implements ConfigSettings {
     public void setShowCompletionChatDetails(final boolean showCompletionChatDetails) {
         this.showCompletionChatDetails = showCompletionChatDetails;
     }
+    public boolean canEnableTrackingBossBar() {
+        return enableTrackingBossBar;
+    }
+    public void setEnableTrackingBossBar(final boolean enableTrackingBossBar) {
+        this.enableTrackingBossBar = enableTrackingBossBar;
+    }
     public int getStrictPlayerMovement() {
         return strictPlayerMovement;
     }
@@ -283,6 +290,7 @@ public class BukkitConfigSettings implements ConfigSettings {
         showQuestReqs = config.getBoolean("show-requirements", true);
         showQuestTitles = config.getBoolean("show-titles", true);
         showCompletionChatDetails = config.getBoolean("show-completion-chat-details", true);
+        enableTrackingBossBar = config.getBoolean("enable-tracking-bossbar", true);
         strictPlayerMovement = config.getInt("strict-player-movement", 0);
         trialSave = config.getBoolean("trial-save", false);
         topLimit = config.getInt("top-limit", 150);

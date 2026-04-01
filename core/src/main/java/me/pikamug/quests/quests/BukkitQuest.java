@@ -902,63 +902,71 @@ public class BukkitQuest implements Quest {
                         quester.sendMessage("- " + message);
                     }
                 } else {
-                if (rewards.getExp() > 0) {
-                    quester.sendMessage("- " + ChatColor.DARK_GREEN + rewards.getExp() + " "
-                            + BukkitLang.get(p, "experience"));
-                }
-                if (rewards.getQuestPoints() > 0) {
-                    quester.sendMessage("- " + ChatColor.DARK_GREEN + rewards.getQuestPoints() + " "
-                            + BukkitLang.get(p, "questPoints"));
-                }
-                for (final ItemStack i : rewards.getItems()) {
-                    StringBuilder text;
-                    if (i.getItemMeta() != null && i.getItemMeta().hasDisplayName()) {
-                        if (i.getEnchantments().isEmpty()) {
-                            text = new StringBuilder("- " + ChatColor.DARK_AQUA + ChatColor.ITALIC + i.getItemMeta().getDisplayName()
-                                    + ChatColor.RESET + ChatColor.GRAY + " x " + i.getAmount());
-                        } else {
-                            text = new StringBuilder("- " + ChatColor.DARK_AQUA + ChatColor.ITALIC + i.getItemMeta().getDisplayName()
-                                    + ChatColor.RESET);
-                            try {
-                                if (!i.getItemMeta().hasItemFlag(ItemFlag.HIDE_ENCHANTS)) {
-                                    text.append(ChatColor.GRAY).append(" ").append(BukkitLang.get(p, "with")).append(ChatColor.DARK_PURPLE);
-                                    for (final Entry<Enchantment, Integer> e : i.getEnchantments().entrySet()) {
-                                        text.append(" ").append(BukkitItemUtil.getPrettyEnchantmentName(e.getKey())).append(":").append(e.getValue());
+                    if (rewards.getExp() > 0) {
+                        quester.sendMessage("- " + ChatColor.DARK_GREEN + rewards.getExp() + " "
+                                + BukkitLang.get(p, "experience"));
+                    }
+                    if (rewards.getQuestPoints() > 0) {
+                        quester.sendMessage("- " + ChatColor.DARK_GREEN + rewards.getQuestPoints() + " "
+                                + BukkitLang.get(p, "questPoints"));
+                    }
+                    for (final ItemStack i : rewards.getItems()) {
+                        StringBuilder text;
+                        if (i.getItemMeta() != null && i.getItemMeta().hasDisplayName()) {
+                            if (i.getEnchantments().isEmpty()) {
+                                text = new StringBuilder("- " + ChatColor.DARK_AQUA + ChatColor.ITALIC + i.getItemMeta().getDisplayName()
+                                        + ChatColor.RESET + ChatColor.GRAY + " x " + i.getAmount());
+                            } else {
+                                text = new StringBuilder("- " + ChatColor.DARK_AQUA + ChatColor.ITALIC + i.getItemMeta().getDisplayName()
+                                        + ChatColor.RESET);
+                                try {
+                                    if (!i.getItemMeta().hasItemFlag(ItemFlag.HIDE_ENCHANTS)) {
+                                        text.append(ChatColor.GRAY).append(" ").append(BukkitLang.get(p, "with")).append(ChatColor.DARK_PURPLE);
+                                        for (final Entry<Enchantment, Integer> e : i.getEnchantments().entrySet()) {
+                                            text.append(" ").append(BukkitItemUtil.getPrettyEnchantmentName(e.getKey())).append(":").append(e.getValue());
+                                        }
                                     }
+                                } catch (final Throwable tr) {
+                                    // Do nothing, hasItemFlag() not introduced until 1.8.6
                                 }
-                            } catch (final Throwable tr) {
-                                // Do nothing, hasItemFlag() not introduced until 1.8.6
+                                text.append(ChatColor.GRAY).append(" x ").append(i.getAmount());
+                            }
+                        } else if (i.getDurability() != 0) {
+                            text = new StringBuilder("- " + ChatColor.DARK_GREEN + "<item>:" + i.getDurability());
+                            if (!i.getEnchantments().isEmpty()) {
+                                text.append(ChatColor.GRAY).append(" ").append(BukkitLang.get(p, "with"));
+                                for (int iz = 0; iz < i.getEnchantments().size(); iz++) {
+                                    text.append(" <enchantment> <level>");
+                                }
+                            }
+                            text.append(ChatColor.GRAY).append(" x ").append(i.getAmount());
+                        } else {
+                            text = new StringBuilder("- " + ChatColor.DARK_GREEN + "<item>");
+                            if (!i.getEnchantments().isEmpty()) {
+                                try {
+                                    if (!i.getItemMeta().hasItemFlag(ItemFlag.HIDE_ENCHANTS)) {
+                                        text.append(ChatColor.GRAY).append(" ").append(BukkitLang.get(p, "with"));
+                                        for (int iz = 0; iz < i.getEnchantments().size(); iz++) {
+                                            text.append(" <enchantment> <level>");
+                                        }
+                                    }
+                                } catch (final Throwable tr) {
+                                    // Do nothing, hasItemFlag() not introduced until 1.8.6
+                                }
                             }
                             text.append(ChatColor.GRAY).append(" x ").append(i.getAmount());
                         }
-                    } else if (i.getDurability() != 0) {
-                        text = new StringBuilder("- " + ChatColor.DARK_GREEN + "<item>:" + i.getDurability());
-                        if (!i.getEnchantments().isEmpty()) {
-                            text.append(ChatColor.GRAY).append(" ").append(BukkitLang.get(p, "with"));
-                            for (int iz = 0; iz < i.getEnchantments().size(); iz++) {
-                                text.append(" <enchantment> <level>");
-                            }
-                        }
-                        text.append(ChatColor.GRAY).append(" x ").append(i.getAmount());
-                    } else {
-                        text = new StringBuilder("- " + ChatColor.DARK_GREEN + "<item>");
-                        if (!i.getEnchantments().isEmpty()) {
-                            try {
-                                if (!i.getItemMeta().hasItemFlag(ItemFlag.HIDE_ENCHANTS)) {
-                                    text.append(ChatColor.GRAY).append(" ").append(BukkitLang.get(p, "with"));
-                                    for (int iz = 0; iz < i.getEnchantments().size(); iz++) {
-                                        text.append(" <enchantment> <level>");
-                                    }
+                        if (plugin.getConfigSettings().canTranslateNames() && text.toString().contains("<item>")) {
+                            if (!plugin.getLocaleManager().sendMessage(p, text.toString(), i.getType(), i.getDurability(),
+                                    i.getEnchantments())) {
+                                for (final Entry<Enchantment, Integer> e : i.getEnchantments().entrySet()) {
+                                    text = new StringBuilder(text.toString().replaceFirst("<enchantment>", BukkitItemUtil.getPrettyEnchantmentName(
+                                            e.getKey())));
+                                    text = new StringBuilder(text.toString().replaceFirst("<level>", RomanNumeral.getNumeral(e.getValue())));
                                 }
-                            } catch (final Throwable tr) {
-                                // Do nothing, hasItemFlag() not introduced until 1.8.6
+                                quester.sendMessage(text.toString().replace("<item>", BukkitItemUtil.getName(i)));
                             }
-                        }
-                        text.append(ChatColor.GRAY).append(" x ").append(i.getAmount());
-                    }
-                    if (plugin.getConfigSettings().canTranslateNames() && text.toString().contains("<item>")) {
-                        if (!plugin.getLocaleManager().sendMessage(p, text.toString(), i.getType(), i.getDurability(),
-                                i.getEnchantments())) {
+                        } else {
                             for (final Entry<Enchantment, Integer> e : i.getEnchantments().entrySet()) {
                                 text = new StringBuilder(text.toString().replaceFirst("<enchantment>", BukkitItemUtil.getPrettyEnchantmentName(
                                         e.getKey())));
@@ -966,88 +974,80 @@ public class BukkitQuest implements Quest {
                             }
                             quester.sendMessage(text.toString().replace("<item>", BukkitItemUtil.getName(i)));
                         }
-                    } else {
-                        for (final Entry<Enchantment, Integer> e : i.getEnchantments().entrySet()) {
-                            text = new StringBuilder(text.toString().replaceFirst("<enchantment>", BukkitItemUtil.getPrettyEnchantmentName(
-                                    e.getKey())));
-                            text = new StringBuilder(text.toString().replaceFirst("<level>", RomanNumeral.getNumeral(e.getValue())));
-                        }
-                        quester.sendMessage(text.toString().replace("<item>", BukkitItemUtil.getName(i)));
                     }
-                }
-                if (rewards.getMoney() > 0 && depends.getVaultEconomy() != null) {
-                    quester.sendMessage("- " + ChatColor.DARK_GREEN
-                            + depends.getVaultEconomy().format(rewards.getMoney()));
-                }
-                if (!rewards.getCommands().isEmpty()) {
-                    int index = 0;
-                    for (final String s : rewards.getCommands()) {
-                        if (!rewards.getCommandsOverrideDisplay().isEmpty()
-                                && rewards.getCommandsOverrideDisplay().size() > index) {
-                            if (!rewards.getCommandsOverrideDisplay().get(index).trim().isEmpty()) {
-                                quester.sendMessage("- " + ChatColor.DARK_GREEN
-                                        + rewards.getCommandsOverrideDisplay().get(index));
-                            }
-                        } else {
-                            quester.sendMessage("- " + ChatColor.DARK_GREEN + s);
-                        }
-                        index++;
-                    }
-                }
-                if (!rewards.getPermissions().isEmpty()) {
-                    int index = 0;
-                    for (final String s : rewards.getPermissions()) {
-                        if (rewards.getPermissionWorlds() != null && rewards.getPermissionWorlds().size() > index) {
-                            quester.sendMessage("- " + ChatColor.DARK_GREEN + s + " ("
-                                    + rewards.getPermissionWorlds().get(index) + ")");
-                        } else {
-                            quester.sendMessage("- " + ChatColor.DARK_GREEN + s);
-                            
-                        }
-                        index++;
-                    }
-                }
-                if (!rewards.getMcmmoSkills().isEmpty()) {
-                    for (final String s : rewards.getMcmmoSkills()) {
+                    if (rewards.getMoney() > 0 && depends.getVaultEconomy() != null) {
                         quester.sendMessage("- " + ChatColor.DARK_GREEN
-                                + rewards.getMcmmoAmounts().get(rewards.getMcmmoSkills().indexOf(s)) + " "
-                                + ChatColor.DARK_PURPLE + s + " " + BukkitLang.get(p, "experience"));
+                                + depends.getVaultEconomy().format(rewards.getMoney()));
                     }
-                }
-                if (!rewards.getHeroesClasses().isEmpty()) {
-                    for (final String s : rewards.getHeroesClasses()) {
-                        quester.sendMessage("- " + ChatColor.AQUA
-                                + rewards.getHeroesAmounts().get(rewards.getHeroesClasses().indexOf(s)) + " " + ChatColor.BLUE
-                                + s + " " + BukkitLang.get(p, "experience"));
-                    }
-                }
-                if (rewards.getPartiesExperience() > 0) {
-                    p.sendMessage("- " + ChatColor.DARK_GREEN + rewards.getPartiesExperience() + ChatColor.DARK_PURPLE
-                            + " " + BukkitLang.get(p, "partiesExperience"));
-                }
-                for (final String s : rewards.getCustomRewards().keySet()) {
-                    CustomReward found = null;
-                    for (final CustomReward cr : plugin.getCustomRewards()) {
-                        if (cr.getName().equalsIgnoreCase(s)) {
-                            found = cr;
-                            break;
-                        }
-                    }
-                    if (found != null) {
-                        final Map<String, Object> dataMap = rewards.getCustomRewards().get(found.getName());
-                        String message = found.getDisplay();
-                        if (message != null) {
-                            for (final String key : dataMap.keySet()) {
-                                message = message.replace("%" + key + "%", dataMap.get(key).toString());
+                    if (!rewards.getCommands().isEmpty()) {
+                        int index = 0;
+                        for (final String s : rewards.getCommands()) {
+                            if (!rewards.getCommandsOverrideDisplay().isEmpty()
+                                    && rewards.getCommandsOverrideDisplay().size() > index) {
+                                if (!rewards.getCommandsOverrideDisplay().get(index).trim().isEmpty()) {
+                                    quester.sendMessage("- " + ChatColor.DARK_GREEN
+                                            + rewards.getCommandsOverrideDisplay().get(index));
+                                }
+                            } else {
+                                quester.sendMessage("- " + ChatColor.DARK_GREEN + s);
                             }
-                            quester.sendMessage("- " + ChatColor.GOLD + message);
-                        } else {
-                            plugin.getLogger().warning("Failed to notify player: " 
-                                    + "Custom Reward does not have an assigned name");
+                            index++;
+                        }
+                    }
+                    if (!rewards.getPermissions().isEmpty()) {
+                        int index = 0;
+                        for (final String s : rewards.getPermissions()) {
+                            if (rewards.getPermissionWorlds() != null && rewards.getPermissionWorlds().size() > index) {
+                                quester.sendMessage("- " + ChatColor.DARK_GREEN + s + " ("
+                                        + rewards.getPermissionWorlds().get(index) + ")");
+                            } else {
+                                quester.sendMessage("- " + ChatColor.DARK_GREEN + s);
+                                
+                            }
+                            index++;
+                        }
+                    }
+                    if (!rewards.getMcmmoSkills().isEmpty()) {
+                        for (final String s : rewards.getMcmmoSkills()) {
+                            quester.sendMessage("- " + ChatColor.DARK_GREEN
+                                    + rewards.getMcmmoAmounts().get(rewards.getMcmmoSkills().indexOf(s)) + " "
+                                    + ChatColor.DARK_PURPLE + s + " " + BukkitLang.get(p, "experience"));
+                        }
+                    }
+                    if (!rewards.getHeroesClasses().isEmpty()) {
+                        for (final String s : rewards.getHeroesClasses()) {
+                            quester.sendMessage("- " + ChatColor.AQUA
+                                    + rewards.getHeroesAmounts().get(rewards.getHeroesClasses().indexOf(s)) + " " + ChatColor.BLUE
+                                    + s + " " + BukkitLang.get(p, "experience"));
+                        }
+                    }
+                    if (rewards.getPartiesExperience() > 0) {
+                        p.sendMessage("- " + ChatColor.DARK_GREEN + rewards.getPartiesExperience() + ChatColor.DARK_PURPLE
+                                + " " + BukkitLang.get(p, "partiesExperience"));
+                    }
+                    for (final String s : rewards.getCustomRewards().keySet()) {
+                        CustomReward found = null;
+                        for (final CustomReward cr : plugin.getCustomRewards()) {
+                            if (cr.getName().equalsIgnoreCase(s)) {
+                                found = cr;
+                                break;
+                            }
+                        }
+                        if (found != null) {
+                            final Map<String, Object> dataMap = rewards.getCustomRewards().get(found.getName());
+                            String message = found.getDisplay();
+                            if (message != null) {
+                                for (final String key : dataMap.keySet()) {
+                                    message = message.replace("%" + key + "%", dataMap.get(key).toString());
+                                }
+                                quester.sendMessage("- " + ChatColor.GOLD + message);
+                            } else {
+                                plugin.getLogger().warning("Failed to notify player: " 
+                                        + "Custom Reward does not have an assigned name");
+                            }
                         }
                     }
                 }
-            }
             }
         }
         quester.saveData();

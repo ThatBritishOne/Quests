@@ -19,6 +19,8 @@ permissions:
       quests.take: true
       quests.quit: true
       quests.stats: true
+      quests.track: true
+      quests.trackbar: true
       quests.top: true
       quests.info: true
       quests.journal: true
@@ -49,6 +51,12 @@ permissions:
     default: true
   quests.stats:
     description: View quest statistics
+    default: true
+  quests.track:
+    description: Choose which active quest is tracked
+    default: true
+  quests.trackbar:
+    description: Toggle the quest tracking bossbar
     default: true
   quests.top:
     description: View plugin leaderboards

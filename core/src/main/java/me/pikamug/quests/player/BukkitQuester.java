@@ -41,6 +41,9 @@ import me.pikamug.quests.util.*;
 import me.pikamug.quests.util.stack.BlockItemStack;
 import me.pikamug.unite.api.objects.PartyProvider;
 import org.bukkit.*;
+import org.bukkit.boss.BarColor;
+import org.bukkit.boss.BarStyle;
+import org.bukkit.boss.BossBar;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -72,6 +75,11 @@ public class BukkitQuester implements Quester {
     private String lastKnownName;
     protected int questPoints = 0;
     private String compassTargetQuestId;
+    private String trackedQuestId;
+    private boolean showTrackingBossBar = true;
+    private BossBar trackingBossBar;
+    private int trackingObjectiveIndex = 0;
+    private long trackingObjectiveSwitchAt = 0L;
     private long lastNotifiedCondition = 0L;
     protected ConcurrentHashMap<Integer, Quest> timers = new ConcurrentHashMap<>();
     protected ConcurrentHashMap<Quest, Integer> currentQuests = new ConcurrentHashMap<Quest, Integer>() {
@@ -296,6 +304,40 @@ public class BukkitQuester implements Quester {
     }
 
     @Override
+    public Quest getTrackedQuest() {
+        return trackedQuestId != null ? plugin.getQuestById(trackedQuestId) : null;
+    }
+
+    @Override
+    public void setTrackedQuest(final Quest quest) {
+        trackedQuestId = quest != null ? quest.getId() : null;
+        trackingObjectiveIndex = 0;
+        trackingObjectiveSwitchAt = 0L;
+        refreshTrackingBossBar();
+    }
+
+    public void advanceTrackingObjective() {
+        if (!Bukkit.isPrimaryThread()) {
+            Bukkit.getScheduler().runTask(plugin, this::advanceTrackingObjective);
+            return;
+        }
+        trackingObjectiveIndex++;
+        trackingObjectiveSwitchAt = System.currentTimeMillis() + 3000L;
+        refreshTrackingBossBar();
+    }
+
+    @Override
+    public boolean canShowTrackingBossBar() {
+        return showTrackingBossBar;
+    }
+
+    @Override
+    public void setShowTrackingBossBar(final boolean showTrackingBossBar) {
+        this.showTrackingBossBar = showTrackingBossBar;
+        refreshTrackingBossBar();
+    }
+
+    @Override
     public ConcurrentHashMap<Integer, Quest> getTimers() {
         return timers;
     }
@@ -469,6 +511,150 @@ public class BukkitQuester implements Quester {
             final BukkitQuestJournal journal = new BukkitQuestJournal(plugin, this);
             getPlayer().getInventory().setItem(index, journal.toItemStack());
         }
+        refreshTrackingBossBar();
+    }
+
+    private void removeTrackingBossBar() {
+        if (trackingBossBar != null) {
+            trackingBossBar.removeAll();
+            trackingBossBar.setVisible(false);
+            trackingBossBar = null;
+        }
+    }
+
+    @Override
+    public void refreshTrackingBossBar() {
+        if (!Bukkit.isPrimaryThread()) {
+            Bukkit.getScheduler().runTask(plugin, this::refreshTrackingBossBar);
+            return;
+        }
+        final Player player = getPlayer();
+        if (player == null || !player.isOnline()) {
+            removeTrackingBossBar();
+            return;
+        }
+        if (!plugin.getConfigSettings().canEnableTrackingBossBar() || !showTrackingBossBar || currentQuests.isEmpty()) {
+            removeTrackingBossBar();
+            return;
+        }
+
+        Quest tracked = getTrackedQuest();
+        if (tracked == null || !currentQuests.containsKey(tracked)) {
+            tracked = currentQuests.keySet().stream().sorted(Comparator.comparing(Quest::getName)).findFirst().orElse(null);
+            trackedQuestId = tracked != null ? tracked.getId() : null;
+        }
+        if (tracked == null) {
+            removeTrackingBossBar();
+            return;
+        }
+
+        final LinkedList<Objective> objectives = getCurrentObjectives(tracked, false, false);
+        final List<Objective> trackableObjectives = objectives.stream()
+                .filter(objective -> objective.getGoal() > 0)
+                .collect(Collectors.toList());
+        if (trackableObjectives.isEmpty()) {
+            removeTrackingBossBar();
+            return;
+        }
+
+        final List<Objective> incompleteObjectives = trackableObjectives.stream()
+                .filter(objective -> objective.getProgress() < objective.getGoal())
+                .collect(Collectors.toList());
+        final List<Objective> displayObjectives = incompleteObjectives.isEmpty() ? trackableObjectives : incompleteObjectives;
+
+        if (trackingObjectiveIndex >= displayObjectives.size()) {
+            trackingObjectiveIndex = 0;
+        }
+        final long now = System.currentTimeMillis();
+        if (displayObjectives.size() > 1 && now >= trackingObjectiveSwitchAt) {
+            trackingObjectiveIndex = (trackingObjectiveIndex + 1) % displayObjectives.size();
+            trackingObjectiveSwitchAt = now + 3000L;
+        } else if (displayObjectives.size() <= 1) {
+            trackingObjectiveSwitchAt = now + 3000L;
+        }
+
+        final Objective selectedObjective = displayObjectives.get(trackingObjectiveIndex);
+
+        final int selectedGoal = selectedObjective.getGoal();
+        final int selectedProgress = Math.min(selectedObjective.getProgress(), selectedGoal);
+        final double progress = selectedGoal > 0
+                ? Math.max(0D, Math.min(1D, (double) selectedProgress / (double) selectedGoal))
+                : 0D;
+
+        String objectiveMessage = getTrackingObjectiveDisplay(selectedObjective);
+        objectiveMessage = objectiveMessage.replaceFirst("^-\\s*", "").trim();
+        if (objectiveMessage.isEmpty()) {
+            objectiveMessage = "Objective";
+        }
+
+        final String countText = selectedProgress + "/" + selectedGoal;
+        if (!objectiveMessage.contains(countText)) {
+            objectiveMessage = objectiveMessage + " " + countText;
+        }
+
+        final int objectiveIndex = displayObjectives.indexOf(selectedObjective) + 1;
+        if (displayObjectives.size() > 1) {
+            objectiveMessage = "(" + objectiveIndex + "/" + displayObjectives.size() + ") " + objectiveMessage;
+        }
+
+        String title = ChatColor.GOLD + tracked.getName() + ChatColor.GRAY + " - " + ChatColor.YELLOW + objectiveMessage;
+        if (ChatColor.stripColor(title).length() > 120) {
+            title = ChatColor.GOLD + tracked.getName() + ChatColor.GRAY + " - " + ChatColor.YELLOW
+                    + objectiveMessage.substring(0, Math.min(objectiveMessage.length(), 100)).trim() + "...";
+        }
+
+        final BarColor color;
+        if (progress >= 0.75D) {
+            color = BarColor.GREEN;
+        } else if (progress >= 0.4D) {
+            color = BarColor.YELLOW;
+        } else {
+            color = BarColor.RED;
+        }
+
+        if (trackingBossBar == null) {
+            trackingBossBar = Bukkit.createBossBar(title, color, BarStyle.SOLID);
+        }
+        trackingBossBar.setTitle(title);
+        trackingBossBar.setColor(color);
+        trackingBossBar.setProgress(progress);
+        if (!trackingBossBar.getPlayers().contains(player)) {
+            trackingBossBar.addPlayer(player);
+        }
+        trackingBossBar.setVisible(true);
+    }
+
+    private String getTrackingObjectiveDisplay(final Objective objective) {
+        String message = objective.getMessage() != null ? ChatColor.stripColor(objective.getMessage()) : "";
+        if (message.isEmpty()) {
+            return "Objective";
+        }
+        if (!(objective instanceof BukkitObjective)) {
+            return message;
+        }
+
+        final BukkitObjective bukkitObjective = (BukkitObjective) objective;
+        if (bukkitObjective.getGoalAsBlockItem() != null) {
+            message = message.replace("<item>", BukkitMiscUtil.snakeCaseToUpperCamelCase(
+                    bukkitObjective.getGoalAsBlockItem().getType().name()));
+        } else if (bukkitObjective.getGoalAsItem() != null) {
+            message = message.replace("<item>", BukkitItemUtil.getName(bukkitObjective.getGoalAsItem()));
+            if (bukkitObjective.getGoalAsItem().getEnchantments().isEmpty()) {
+                message = message.replace("<enchantment>", "").replace("<level>", "");
+            } else {
+                final Entry<Enchantment, Integer> enchant = bukkitObjective.getGoalAsItem().getEnchantments()
+                        .entrySet().iterator().next();
+                message = message.replace("<enchantment>", BukkitItemUtil.getPrettyEnchantmentName(enchant.getKey()));
+                message = message.replace("<level>", RomanNumeral.getNumeral(enchant.getValue()));
+            }
+        } else if (bukkitObjective.getGoalAsMob() != null) {
+            message = message.replace("<mob>", BukkitMiscUtil.snakeCaseToUpperCamelCase(
+                    bukkitObjective.getGoalAsMob().getEntityType().name()));
+        }
+
+        message = message.replace("<count>", objective.getProgress() + "/" + objective.getGoal());
+        message = message.replace("%count%", objective.getProgress() + "/" + objective.getGoal());
+        return message.replaceAll("\\s{2,}", " ").trim();
     }
 
     /**
@@ -3921,6 +4107,8 @@ public class BukkitQuester implements Quester {
         data.set("currentQuests", currentQuestIds);
         data.set("currentStages", currentQuestStages);
         data.set("quest-points", questPoints);
+        data.set("trackedQuest", trackedQuestId);
+        data.set("showTrackingBossBar", showTrackingBossBar);
         if (!completedQuests.isEmpty()) {
             final List<String> questIds = new LinkedList<>();
             for (final Quest quest : completedQuests) {
@@ -4231,7 +4419,22 @@ public class BukkitQuester implements Quester {
     public void findCompassTarget() {
         // Here we apply this method to OPs by not checking #canUseCompass
         if (getPlayer() == null || !getPlayer().hasPermission("quests.compass")) {
+            refreshTrackingBossBar();
             return;
+        }
+        final Quest tracked = getTrackedQuest();
+        if (tracked != null && currentQuests.containsKey(tracked)) {
+            final Stage trackedStage = getCurrentStage(tracked);
+            if (trackedStage != null) {
+                if (trackedStage.hasLocatableObjective()) {
+                    tracked.updateCompass(this, trackedStage);
+                } else {
+                    resetCompass();
+                    setCompassTarget(tracked);
+                }
+                refreshTrackingBossBar();
+                return;
+            }
         }
         for (final Quest quest : currentQuests.keySet()) {
             final Stage stage = getCurrentStage(quest);
@@ -4245,6 +4448,7 @@ public class BukkitQuester implements Quester {
                 break;
             }
         }
+        refreshTrackingBossBar();
     }
 
     /**
@@ -4274,6 +4478,7 @@ public class BukkitQuester implements Quester {
             if (!list.isEmpty()) {
                 final Quest quest = plugin.getQuestById(list.get(index));
                 compassTargetQuestId = quest.getId();
+                trackedQuestId = quest.getId();
                 final Stage stage = getCurrentStage(quest);
                 if (stage != null) {
                     if (stage.hasLocatableObjective()) {
@@ -4295,6 +4500,7 @@ public class BukkitQuester implements Quester {
                 sendMessage(ChatColor.RED + BukkitLang.get(getPlayer(), "journalNoQuests")
                         .replace("<journal>", BukkitLang.get(getPlayer(), "journalTitle")));
             }
+            Bukkit.getScheduler().runTask(plugin, BukkitQuester.this::refreshTrackingBossBar);
         });
     }
 

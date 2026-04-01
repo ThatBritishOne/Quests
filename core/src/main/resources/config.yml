@@ -24,6 +24,7 @@ show-completed-objectives: true
 show-requirements: true
 show-titles: true
 show-completion-chat-details: true
+enable-tracking-bossbar: true
 storage-data:
   address: localhost:3306
   database: minecraft

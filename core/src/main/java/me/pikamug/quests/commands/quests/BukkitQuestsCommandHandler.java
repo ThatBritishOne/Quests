@@ -21,6 +21,8 @@ import me.pikamug.quests.commands.quests.subcommands.BukkitQuestsListCommand;
 import me.pikamug.quests.commands.quests.subcommands.BukkitQuestsQuitCommand;
 import me.pikamug.quests.commands.quests.subcommands.BukkitQuestsStatsCommand;
 import me.pikamug.quests.commands.quests.subcommands.BukkitQuestsTakeCommand;
+import me.pikamug.quests.commands.quests.subcommands.BukkitQuestsTrackCommand;
+import me.pikamug.quests.commands.quests.subcommands.BukkitQuestsTrackbarCommand;
 import me.pikamug.quests.commands.quests.subcommands.BukkitQuestsTopCommand;
 import me.pikamug.quests.commands.BukkitQuestsSubCommand;
 import me.pikamug.quests.util.BukkitLang;
@@ -47,6 +49,8 @@ public class BukkitQuestsCommandHandler {
                         new BukkitQuestsTakeCommand(plugin),
                         new BukkitQuestsQuitCommand(plugin),
                         new BukkitQuestsStatsCommand(plugin),
+                        new BukkitQuestsTrackCommand(plugin),
+                        new BukkitQuestsTrackbarCommand(plugin),
                         new BukkitQuestsJournalCommand(plugin),
                         new BukkitQuestsTopCommand(plugin),
                         new BukkitQuestsEditorCommand(plugin),
@@ -63,9 +67,10 @@ public class BukkitQuestsCommandHandler {
             return true;
         }
         for (Map.Entry<String, BukkitQuestsSubCommand> cmd : subCommands.entrySet()) {
-            if (args[0].equalsIgnoreCase(cmd.getKey()) || args[0].equalsIgnoreCase(cmd.getValue().getNameI18N())) {
+            final String i18nName = getSafeNameI18N(cmd.getValue());
+            if (args[0].equalsIgnoreCase(cmd.getKey()) || args[0].equalsIgnoreCase(i18nName)) {
                 if (args.length < cmd.getValue().getMaxArguments()) {
-                    cs.sendMessage(getCommandUsage(cs, args[0]));
+                    cs.sendMessage(getCommandUsage(cs, cmd.getValue()));
                 }
                 cmd.getValue().execute(cs, args);
                 return true;
@@ -79,14 +84,16 @@ public class BukkitQuestsCommandHandler {
         if (args.length == 1) {
             final List<String> results = new ArrayList<>();
             for (Map.Entry<String, BukkitQuestsSubCommand> cmd : subCommands.entrySet()) {
-                if (cmd.getKey().startsWith(args[0]) || cmd.getValue().getNameI18N().startsWith(args[0])) {
-                    results.add(cmd.getValue().getNameI18N());
+                final String i18nName = getSafeNameI18N(cmd.getValue());
+                if (cmd.getKey().startsWith(args[0]) || i18nName.startsWith(args[0])) {
+                    results.add(i18nName);
                 }
             }
             return results;
         }
         for (Map.Entry<String, BukkitQuestsSubCommand> cmd : subCommands.entrySet()) {
-            if (args[0].equalsIgnoreCase(cmd.getKey()) || args[0].equalsIgnoreCase(cmd.getValue().getNameI18N())) {
+            final String i18nName = getSafeNameI18N(cmd.getValue());
+            if (args[0].equalsIgnoreCase(cmd.getKey()) || args[0].equalsIgnoreCase(i18nName)) {
                 return cmd.getValue().tabComplete(cs, args);
             }
         }
@@ -104,8 +111,9 @@ public class BukkitQuestsCommandHandler {
             if (cmd.getName().equals("choice")) {
                 continue;
             }
-            cs.sendMessage(ChatColor.YELLOW + "/quests " + cmd.getDescription().replace("<command>",
-                    plugin.getConfigSettings().canTranslateSubCommands() ? cmd.getNameI18N() : cmd.getName()));
+            final String commandName = plugin.getConfigSettings().canTranslateSubCommands() ? getSafeNameI18N(cmd) : cmd.getName();
+            final String description = getSafeDescription(cmd).replace("<command>", commandName);
+            cs.sendMessage(ChatColor.YELLOW + "/quests " + description);
         }
         if (cs instanceof Player) {
             cs.sendMessage(ChatColor.DARK_AQUA + "/quest " + ChatColor.YELLOW + BukkitLang.get(cs, "COMMAND_QUEST_HELP"));
@@ -120,9 +128,26 @@ public class BukkitQuestsCommandHandler {
         }
     }
 
-    private String getCommandUsage(final CommandSender cs, final String cmd) {
-        return ChatColor.RED + BukkitLang.get(cs, "usage") + ": " + ChatColor.YELLOW + "/quests "
-                + BukkitLang.get(cs, BukkitLang.getKeyFromPrefix("COMMAND_", cmd) + "_HELP")
-                .replace("<command>", cmd.toLowerCase());
+    private String getCommandUsage(final CommandSender cs, final BukkitQuestsSubCommand command) {
+        final String usagePrefix = BukkitLang.get(cs, "usage");
+        final String safeUsagePrefix = "NULL".equals(usagePrefix) ? "Usage" : usagePrefix;
+
+        String commandHelp = BukkitLang.get(cs, BukkitLang.getKeyFromPrefix("COMMAND_", command.getName()) + "_HELP");
+        if ("NULL".equals(commandHelp)) {
+            commandHelp = command.getSyntax().replace("/quests ", "");
+        }
+
+        return ChatColor.RED + safeUsagePrefix + ": " + ChatColor.YELLOW + "/quests "
+                + commandHelp.replace("<command>", command.getName().toLowerCase());
+    }
+
+    private String getSafeNameI18N(final BukkitQuestsSubCommand command) {
+        final String name = command.getNameI18N();
+        return "NULL".equals(name) ? command.getName() : name;
+    }
+
+    private String getSafeDescription(final BukkitQuestsSubCommand command) {
+        final String description = command.getDescription();
+        return "NULL".equals(description) ? command.getSyntax().replace("/quests ", "") : description;
     }
 }
